@@ -33,6 +33,28 @@ function getConfig() {
     };
 }
 
+function formatTimestamp(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}${month}${day}-${hours}${minutes}${seconds}`;
+}
+
+function buildMarkdownAltText(document: vscode.TextDocument): string {
+    const fileName = path.basename(document.fileName, path.extname(document.fileName));
+    const normalizedFileName = fileName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+    const baseName = normalizedFileName || 'image';
+    return `${baseName}-${formatTimestamp(new Date())}`;
+}
+
 /**
  * 将剪贴板图片保存到临时文件
  */
@@ -201,9 +223,8 @@ async function uploadWithPicgo(imagePath: string): Promise<string | null> {
  */
 async function insertMarkdownImage(editor: vscode.TextEditor, imageUrl: string) {
     const selection = editor.selection;
-    const selectedText = editor.document.getText(selection);
-    
-    const altText = selectedText || 'image';
+    const selectedText = editor.document.getText(selection).trim();
+    const altText = selectedText || buildMarkdownAltText(editor.document);
     const markdownImage = `![${altText}](${imageUrl})`;
 
     await editor.edit((editBuilder) => {
@@ -348,7 +369,7 @@ class PicgoPasteEditProvider implements vscode.DocumentPasteEditProvider {
         }
 
         // 创建 Markdown 图片链接
-        const markdownImage = `![image](${imageUrl})`;
+        const markdownImage = `![${buildMarkdownAltText(document)}](${imageUrl})`;
         
         // 创建粘贴编辑（新 API 需要 3 个参数：insertText, title, kind）
         const pasteEdit = new vscode.DocumentPasteEdit(
